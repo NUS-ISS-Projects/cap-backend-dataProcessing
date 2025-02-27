@@ -9,6 +9,16 @@
             "projectName": "dis",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-DisProcessingApplication<dis>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.cap.dis.DisProcessingApplication",
+            "projectName": "dis",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
