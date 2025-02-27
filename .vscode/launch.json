@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-DisApplication<dis>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.cap.dis.DisApplication",
+            "projectName": "dis",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
