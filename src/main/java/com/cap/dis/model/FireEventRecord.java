@@ -8,19 +8,23 @@ import lombok.Data;
 
 @Entity
 @Data
-public class EntityStateRecord {
+public class FireEventRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private int site;
-    private int application;
-    private int entity;
+    private int firingSite;
+    private int firingApplication;
+    private int firingEntity;
 
-    private double locationX;
-    private double locationY;
-    private double locationZ;
+    private int targetSite;
+    private int targetApplication;
+    private int targetEntity;
+
+    private int munitionSite;
+    private int munitionApplication;
+    private int munitionEntity;
 
     private long timestamp;
 }
