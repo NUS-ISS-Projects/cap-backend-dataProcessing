@@ -1,0 +1,480 @@
+
+===== File: test/java/com/cap/dis/DisApplicationTests.java =====
+
+package com.cap.dis;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class DisApplicationTests {
+
+	@Test
+	void contextLoads() {
+	}
+
+}
+
+========================
+
+
+
+===== File: main/java/com/cap/dis/repository/FireEventRepository.java =====
+
+package com.cap.dis.repository;
+
+import com.cap.dis.model.FireEventRecord;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface FireEventRepository extends JpaRepository<FireEventRecord, Long> {
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/repository/EntityStateRepository.java =====
+
+package com.cap.dis.repository;
+
+import com.cap.dis.model.EntityStateRecord;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface EntityStateRepository extends JpaRepository<EntityStateRecord, Long> {
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/config/KafkaConsumerConfig.java =====
+
+package com.cap.dis.config;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@EnableKafka
+@Configuration
+public class KafkaConsumerConfig {
+
+    @Value("${spring.kafka.bootstrap-servers}")
+    private String bootstrapServers;
+
+    @Value("${spring.kafka.consumer.group-id}")
+    private String groupId;
+
+    @Bean
+    public ConsumerFactory<String, String> consumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(3);
+        return factory;
+    }
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/DisProcessingApplication.java =====
+
+package com.cap.dis;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class DisProcessingApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(DisProcessingApplication.class, args);
+    }
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/service/DefaultPduParser.java =====
+
+package com.cap.dis.service;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+@Component
+public class DefaultPduParser implements PduParser {
+    private static final Logger log = LoggerFactory.getLogger(DefaultPduParser.class);
+
+    @Override
+    public void parseAndStore(String jsonMessage) {
+        log.warn("Received unhandled PDU type: {}", jsonMessage);
+    }
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/service/EntityStatePduParser.java =====
+
+package com.cap.dis.service;
+
+import com.cap.dis.model.EntityStateRecord;
+import com.cap.dis.model.PduMessage;
+import com.cap.dis.repository.EntityStateRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+@Component
+public class EntityStatePduParser implements PduParser {
+    private static final Logger log = LoggerFactory.getLogger(EntityStatePduParser.class);
+
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private EntityStateRepository repository;
+
+    @Override
+    @Transactional
+    public void parseAndStore(String jsonMessage) {
+        try {
+            PduMessage pduMessage = objectMapper.readValue(jsonMessage, PduMessage.class);
+            if (pduMessage.getEntityId() == null || pduMessage.getLocation() == null) {
+                log.error("Missing required fields in EntityStatePdu: {}", jsonMessage);
+                return;
+            }
+            EntityStateRecord record = new EntityStateRecord();
+            record.setSite(pduMessage.getEntityId().getSite());
+            record.setApplication(pduMessage.getEntityId().getApplication());
+            record.setEntity(pduMessage.getEntityId().getEntity());
+            record.setLocationX(pduMessage.getLocation().getX());
+            record.setLocationY(pduMessage.getLocation().getY());
+            record.setLocationZ(pduMessage.getLocation().getZ());
+            record.setTimestamp(pduMessage.getTimestamp());
+            repository.save(record);
+            log.info("Stored EntityStateRecord: {}", record);
+        } catch (Exception e) {
+            log.error("Failed to parse and store EntityStatePdu: {}", jsonMessage, e);
+        }
+    }
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/service/FirePduParser.java =====
+
+package com.cap.dis.service;
+
+import com.cap.dis.model.FireEventRecord;
+import com.cap.dis.model.PduMessage;
+import com.cap.dis.repository.FireEventRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+@Component
+public class FirePduParser implements PduParser {
+    private static final Logger log = LoggerFactory.getLogger(FirePduParser.class);
+
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private FireEventRepository repository;
+
+    @Override
+    @Transactional
+    public void parseAndStore(String jsonMessage) {
+        try {
+            PduMessage pduMessage = objectMapper.readValue(jsonMessage, PduMessage.class);
+            if (pduMessage.getFiringEntityId() == null || pduMessage.getTargetEntityId() == null || pduMessage.getMunitionId() == null) {
+                log.error("Missing required fields in FirePdu: {}", jsonMessage);
+                return;
+            }
+            FireEventRecord record = new FireEventRecord();
+            record.setFiringSite(pduMessage.getFiringEntityId().getSite());
+            record.setFiringApplication(pduMessage.getFiringEntityId().getApplication());
+            record.setFiringEntity(pduMessage.getFiringEntityId().getEntity());
+            record.setTargetSite(pduMessage.getTargetEntityId().getSite());
+            record.setTargetApplication(pduMessage.getTargetEntityId().getApplication());
+            record.setTargetEntity(pduMessage.getTargetEntityId().getEntity());
+            record.setMunitionSite(pduMessage.getMunitionId().getSite());
+            record.setMunitionApplication(pduMessage.getMunitionId().getApplication());
+            record.setMunitionEntity(pduMessage.getMunitionId().getEntity());
+            record.setTimestamp(pduMessage.getTimestamp());
+            repository.save(record);
+            log.info("Stored FireEventRecord: {}", record);
+        } catch (Exception e) {
+            log.error("Failed to parse and store FirePdu: {}", jsonMessage, e);
+        }
+    }
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/service/PduParser.java =====
+
+package com.cap.dis.service;
+
+public interface PduParser {
+    void parseAndStore(String jsonMessage);
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/service/PduParserFactory.java =====
+
+package com.cap.dis.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
+import java.util.HashMap;
+import java.util.Map;
+
+@Component
+public class PduParserFactory {
+    private Map<String, PduParser> parsers;
+
+    @Autowired
+    private EntityStatePduParser entityStatePduParser;
+    @Autowired
+    private FirePduParser firePduParser;
+    @Autowired
+    private DefaultPduParser defaultPduParser;
+
+    @PostConstruct
+    public void init() {
+        parsers = new HashMap<>();
+        parsers.put("EntityStatePdu", entityStatePduParser);
+        parsers.put("FirePdu", firePduParser);
+    }
+
+    public PduParser getParser(String pduType) {
+        return parsers.getOrDefault(pduType, defaultPduParser);
+    }
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/service/PduProcessingService.java =====
+
+package com.cap.dis.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class PduProcessingService {
+
+    private static final Logger log = LoggerFactory.getLogger(PduProcessingService.class);
+
+    private final ObjectMapper objectMapper;
+    private final PduParserFactory parserFactory;
+
+    @KafkaListener(topics = "${kafka.topic}", groupId = "${spring.kafka.consumer.group-id}", concurrency = "3")
+    public void consume(String message) {
+        log.info("Received message from Kafka: {}", message);
+        try {
+            JsonNode jsonNode = objectMapper.readTree(message);
+            String pduType = jsonNode.get("type").asText();
+            if (pduType == null || pduType.isEmpty()) {
+                log.error("Missing or empty PDU type in message: {}", message);
+                return;
+            }
+            long timestamp = jsonNode.has("timestamp") ? jsonNode.get("timestamp").asLong() : System.currentTimeMillis();
+            log.debug("Processing PDU type: {} with timestamp: {}", pduType, timestamp);
+            PduParser parser = parserFactory.getParser(pduType);
+            parser.parseAndStore(message);
+            log.info("Processed PDU type: {} with timestamp: {}", pduType, timestamp);
+        } catch (Exception e) {
+            log.error("Error processing message: {}", message, e);
+        }
+    }
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/model/FireEventRecord.java =====
+
+package com.cap.dis.model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import lombok.Data;
+
+@Entity
+@Data
+public class FireEventRecord {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private int firingSite;
+    private int firingApplication;
+    private int firingEntity;
+
+    private int targetSite;
+    private int targetApplication;
+    private int targetEntity;
+
+    private int munitionSite;
+    private int munitionApplication;
+    private int munitionEntity;
+
+    private long timestamp;
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/model/Location.java =====
+
+package com.cap.dis.model;
+
+import lombok.Data;
+
+@Data
+public class Location {
+    private double x;
+    private double y;
+    private double z;
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/model/EntityStateRecord.java =====
+
+package com.cap.dis.model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import lombok.Data;
+
+@Entity
+@Data
+public class EntityStateRecord {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private int site;
+    private int application;
+    private int entity;
+
+    private double locationX;
+    private double locationY;
+    private double locationZ;
+
+    private long timestamp;
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/model/EntityId.java =====
+
+package com.cap.dis.model;
+
+import lombok.Data;
+
+@Data
+public class EntityId {
+    private int site;
+    private int application;
+    private int entity;
+}
+========================
+
+
+
+===== File: main/java/com/cap/dis/model/PduMessage.java =====
+
+package com.cap.dis.model;
+
+import lombok.Data;
+
+@Data
+public class PduMessage {
+    private String type;
+    private EntityId entityId;
+    private Location location;
+    private long timestamp;
+
+    // Fields for FirePdu
+    private EntityId firingEntityId;
+    private EntityId targetEntityId;
+    private EntityId munitionId;
+}
+========================
+
+
+
+===== File: main/resources/application.properties =====
+
+spring.application.name=dis
+
+server.port=8080
+
+# Kafka Consumer Configuration
+kafka.topic=dis-pdus
+spring.kafka.bootstrap-servers=localhost:9092
+spring.kafka.consumer.group-id=processing-group
+spring.kafka.consumer.auto-offset-reset=earliest
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+
+# PostgreSQL Database Configuration
+spring.datasource.url=jdbc:postgresql://localhost:5432/dis_db
+spring.datasource.username=dis_user
+spring.datasource.password=dis_pass
+spring.datasource.driver-class-name=org.postgresql.Driver
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+========================
+
+

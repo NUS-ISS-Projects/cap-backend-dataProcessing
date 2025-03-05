@@ -9,6 +9,26 @@
             "projectName": "dis",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-DisProcessingApplication<dis>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.cap.dis.DisProcessingApplication",
+            "projectName": "dis",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-DisProcessingApplication<data-processing-service>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.cap.dis.DisProcessingApplication",
+            "projectName": "data-processing-service",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
