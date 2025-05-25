@@ -1,5 +1,6 @@
 package com.cap.dis.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,10 +16,8 @@ public class HealthController {
     // to perform additional checks.
 
     @GetMapping("/health")
-    public Map<String, Object> health() {
-        Map<String, Object> status = new HashMap<>();
-        status.put("status", "UP");
-        status.put("message", "Data processing service is running");
-        return status;
+    public ResponseEntity<String> healthCheck() {
+        String podName = System.getenv("HOSTNAME");
+        return ResponseEntity.ok("Data processing service is up and running on pod: " + podName);
     }
 }
