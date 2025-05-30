@@ -36,6 +36,7 @@ public class EntityStatePduParser implements PduParser {
             record.setLocationY(pduMessage.getLocation().getY());
             record.setLocationZ(pduMessage.getLocation().getZ());
             record.setTimestamp(pduMessage.getTimestamp());
+            log.info("Attempting to store EntityStateRecord with timestamp: {}", record.getTimestamp()); // <<< ADD THIS LOG
             repository.save(record);
             log.info("Stored EntityStateRecord: {}", record);
         } catch (Exception e) {

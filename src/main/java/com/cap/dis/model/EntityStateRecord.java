@@ -1,5 +1,6 @@
 package com.cap.dis.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -22,5 +23,6 @@ public class EntityStateRecord {
     private double locationY;
     private double locationZ;
 
+    @Column(columnDefinition = "BIGINT")
     private long timestamp;
 }

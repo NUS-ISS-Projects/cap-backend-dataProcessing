@@ -39,6 +39,7 @@ public class FirePduParser implements PduParser {
             record.setMunitionApplication(pduMessage.getMunitionId().getApplication());
             record.setMunitionEntity(pduMessage.getMunitionId().getEntity());
             record.setTimestamp(pduMessage.getTimestamp());
+            log.info("Attempting to store FirePduRecord with timestamp: {}", record.getTimestamp()); // <<< ADD THIS LOG
             repository.save(record);
             log.info("Stored FireEventRecord: {}", record);
         } catch (Exception e) {
