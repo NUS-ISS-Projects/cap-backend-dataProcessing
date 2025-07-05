@@ -19,6 +19,22 @@ public class PduParserFactory {
     @Autowired
     private FirePduParser firePduParser;
     @Autowired
+    private DetonationPduParser detonationPduParser;
+    @Autowired
+    private CollisionPduParser collisionPduParser;
+    @Autowired
+    private DataPduParser dataPduParser;
+    @Autowired
+    private ActionRequestPduParser actionRequestPduParser;
+    @Autowired
+    private StartResumePduParser startResumePduParser;
+    @Autowired
+    private SetDataPduParser setDataPduParser;
+    @Autowired
+    private DesignatorPduParser designatorPduParser;
+    @Autowired
+    private ElectromagneticEmissionsPduParser electromagneticEmissionsPduParser;
+    @Autowired
     private DefaultPduParser defaultPduParser;
 
     @PostConstruct
@@ -26,6 +42,14 @@ public class PduParserFactory {
         parsers = new HashMap<>();
         parsers.put("EntityStatePdu", entityStatePduParser);
         parsers.put("FirePdu", firePduParser);
+        parsers.put("DetonationPdu", detonationPduParser);
+        parsers.put("CollisionPdu", collisionPduParser);
+        parsers.put("DataPdu", dataPduParser);
+        parsers.put("ActionRequestPdu", actionRequestPduParser);
+        parsers.put("StartResumePdu", startResumePduParser);
+        parsers.put("SetDataPdu", setDataPduParser);
+        parsers.put("DesignatorPdu", designatorPduParser);
+        parsers.put("ElectronicEmissionsPdu", electromagneticEmissionsPduParser);
         log.info("Initialized PduParserFactory with parsers: {}", parsers.keySet());
     }
 

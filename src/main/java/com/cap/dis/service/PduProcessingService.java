@@ -22,11 +22,26 @@ public class PduProcessingService {
         log.info("Received message from Kafka: {}", message);
         try {
             JsonNode jsonNode = objectMapper.readTree(message);
-            String pduType = jsonNode.get("type").asText();
-            if (pduType == null || pduType.isEmpty()) {
-                log.error("Missing or empty PDU type in message: {}", message);
+            
+            // Check if this is an error message from the data ingestion service
+            if (jsonNode.has("error")) {
+                log.warn("Received error message from data ingestion service: {}", jsonNode.get("error").asText());
                 return;
             }
+            
+            // Now safely get the type field
+            JsonNode typeNode = jsonNode.get("type");
+            if (typeNode == null) {
+                log.error("Missing PDU type in message: {}", message);
+                return;
+            }
+            
+            String pduType = typeNode.asText();
+            if (pduType.isEmpty()) {
+                log.error("Empty PDU type in message: {}", message);
+                return;
+            }
+            
             log.debug("Extracted PDU type: '{}'", pduType);  // Debug log for type
             long timestamp = jsonNode.has("timestamp") ? jsonNode.get("timestamp").asLong() : System.currentTimeMillis();
             log.debug("Processing PDU type: {} with timestamp: {}", pduType, timestamp);
