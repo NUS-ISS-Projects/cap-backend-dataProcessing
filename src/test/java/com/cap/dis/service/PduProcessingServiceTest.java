@@ -140,4 +140,17 @@ class PduProcessingServiceTest {
         // or to inspect arguments if timestamp was passed to parser.
         // The log "Processing PDU type: {} with timestamp: {}" uses the derived/current time.
     }
+    
+    @Test
+    void consume_messageWithErrorField_shouldLogWarningAndReturn() throws Exception {
+        // Arrange
+        String message = "{\"error\":\"Error decoding PDU\"}";
+
+        // Act
+        pduProcessingService.consume(message);
+
+        // Assert
+        verify(parserFactory, never()).getParser(anyString());
+        verify(mockPduParser, never()).parseAndStore(anyString());
+    }
 }
