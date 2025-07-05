@@ -16,4 +16,22 @@ public class PduMessage {
     private EntityId firingEntityId;
     private EntityId targetEntityId;
     private EntityId munitionId;
+    
+    // Fields for CollisionPdu
+    private EntityId issuingEntityId;
+    private EntityId collidingEntityId;
+    
+    // Fields for DataPdu
+    private EntityId originatingEntityId;
+    private EntityId receivingEntityId;
+    
+    // Fields for DesignatorPdu
+    private EntityId designatingEntityId;
+    private EntityId designatedEntityId;
+    
+    // Fields for ElectronicEmissionsPdu
+    private EntityId emittingEntityId;
+    
+    // Fields for StartResumePdu
+    private RealWorldTime realWorldTime;
 }
